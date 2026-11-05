@@ -2,6 +2,8 @@
 #include "little8_font3x4.h"
 #include "raylib.h"
 
+#include <stdlib.h>
+
 // Палитра 16 цветов. Игра знает только индексы.
 static const uint32_t palette[16] = {
     0x1a1c2c, 0x5d275d, 0xb13e53, 0xef7d57,
@@ -123,6 +125,80 @@ void print(const char *s, int x, int y, uint8_t color) {
             }
         }
         cx += w + 1;
+    }
+}
+
+
+void line(int x0, int y0, int x1, int y1, uint8_t color) {
+    int dx =  abs(x1 - x0);
+    int dy = -abs(y1 - y0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx + dy;
+
+    while (1) {
+        pset(x0, y0, color);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
+void rect(int x, int y, int w, int h, uint8_t color) {
+    if (w <= 0 || h <= 0) return;
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++)
+            pset(x + i, y + j, color);
+}
+
+void rectb(int x, int y, int w, int h, uint8_t color) {
+    if (w <= 0 || h <= 0) return;
+    for (int i = 0; i < w; i++) {
+        pset(x + i, y,         color);
+        pset(x + i, y + h - 1, color);
+    }
+    for (int j = 0; j < h; j++) {
+        pset(x,         y + j, color);
+        pset(x + w - 1, y + j, color);
+    }
+}
+
+void circb(int cx, int cy, int r, uint8_t color) {
+    if (r < 0) return;
+    int x = r, y = 0;
+    int err = 1 - r;
+    while (x >= y) {
+        pset(cx + x, cy + y, color);
+        pset(cx - x, cy + y, color);
+        pset(cx + x, cy - y, color);
+        pset(cx - x, cy - y, color);
+        pset(cx + y, cy + x, color);
+        pset(cx - y, cy + x, color);
+        pset(cx + y, cy - x, color);
+        pset(cx - y, cy - x, color);
+        y++;
+        if (err < 0) err += 2 * y + 1;
+        else { x--; err += 2 * (y - x) + 1; }
+    }
+}
+
+void circ(int cx, int cy, int r, uint8_t color) {
+    if (r < 0) return;
+    int x = r, y = 0;
+    int err = 1 - r;
+    while (x >= y) {
+        for (int i = cx - x; i <= cx + x; i++) {
+            pset(i, cy + y, color);
+            pset(i, cy - y, color);
+        }
+        for (int i = cx - y; i <= cx + y; i++) {
+            pset(i, cy + x, color);
+            pset(i, cy - x, color);
+        }
+        y++;
+        if (err < 0) err += 2 * y + 1;
+        else { x--; err += 2 * (y - x) + 1; }
     }
 }
 

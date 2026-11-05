@@ -40,6 +40,13 @@ L8_API uint8_t pget(int x, int y);
 L8_API void print(const char *s, int x, int y, uint8_t color);
 
 
+L8_API void line(int x0, int y0, int x1, int y1, uint8_t color);
+L8_API void rect (int x, int y, int w, int h, uint8_t color);   // залитый
+L8_API void rectb(int x, int y, int w, int h, uint8_t color);   // рамка
+L8_API void circ (int x, int y, int r, uint8_t color);          // залитый
+L8_API void circb(int x, int y, int r, uint8_t color);          // рамка
+
+
 // Кнопка зажата сейчас (0=left 1=right 2=up 3=down 4=A 5=B)
 L8_API bool btn(int id, int player);
 
