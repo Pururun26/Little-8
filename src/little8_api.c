@@ -3,6 +3,18 @@
 #include "raylib.h"
 
 #include <stdlib.h>
+#include <string.h>
+
+#define L8_SPR_COUNT  256
+#define L8_SPR_MAX_W  128
+#define L8_SPR_MAX_H  128
+
+typedef struct {
+    uint8_t *data;   // w*h байт, row-major; NULL = пустой спрайт
+    int w, h;
+} L8Sprite;
+
+static L8Sprite g_sprites[L8_SPR_COUNT];
 
 // Палитра 16 цветов. Игра знает только индексы.
 static const uint32_t palette[16] = {
@@ -47,7 +59,6 @@ void little8(void (*init)(void),
     UnloadImage(img);
     SetTextureFilter(screen, TEXTURE_FILTER_POINT);
 
-    cls(0);
     if (init) init();
 
     while (!WindowShouldClose()) {
@@ -253,4 +264,43 @@ bool btnp(int id, int player) {
             break;
     }
     return false;
+}
+
+void sprdata(int id, const uint8_t *data, int w, int h) {
+    if (id < 0 || id >= L8_SPR_COUNT) return;
+    if (!data || w <= 0 || h <= 0 || w > L8_SPR_MAX_W || h > L8_SPR_MAX_H) return;
+
+    L8Sprite *s = &g_sprites[id];
+
+    // освобождаем старые данные, если спрайт уже был загружен
+    if (s->data) {
+        free(s->data);
+        s->data = NULL;
+    }
+
+    s->data = (uint8_t *)malloc((size_t)w * (size_t)h);
+    if (!s->data) { s->w = s->h = 0; return; }
+
+    memcpy(s->data, data, (size_t)w * (size_t)h);
+    s->w = w;
+    s->h = h;
+}
+
+void spr(int id, int x, int y, bool flip_x, bool flip_y, int colorkey) {
+    if (id < 0 || id >= L8_SPR_COUNT) return;
+
+    const L8Sprite *s = &g_sprites[id];
+    if (!s->data || s->w <= 0 || s->h <= 0) return;
+
+    for (int row = 0; row < s->h; row++) {
+        for (int col = 0; col < s->w; col++) {
+            int sx = flip_x ? (s->w - 1 - col) : col;
+            int sy = flip_y ? (s->h - 1 - row) : row;
+            uint8_t c = s->data[sy * s->w + sx];
+
+            if (colorkey >= 0 && c == (uint8_t)colorkey) continue;
+
+            pset(x + col, y + row, c);
+        }
+    }
 }

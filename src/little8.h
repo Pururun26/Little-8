@@ -53,6 +53,17 @@ L8_API bool btn(int id, int player);
 // Кнопка нажата в этом кадре (edge, «только что»)
 L8_API bool btnp(int id, int player);
 
+
+// ---- Спрайты ----
+// Загрузить спрайт id (0..255) размером w×h (пикселей).
+// data — row-major, w*h байт, значения 0..15, 0 = прозрачный.
+// Данные КОПИРУЮТСЯ внутрь DLL — массив можно освободить после вызова.
+L8_API void sprdata(int id, const uint8_t *data, int w, int h);
+
+// Нарисовать спрайт id в (x,y). flip_x/flip_y — отражение.
+// colorkey: цвет (0..15), который НЕ рисуется; -1 = все пиксели видны.
+L8_API void spr(int id, int x, int y, bool flip_x, bool flip_y, int colorkey);
+
 #ifdef __cplusplus
 }
 #endif
