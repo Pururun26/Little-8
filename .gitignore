@@ -1,10 +1,14 @@
-# Build
+# Build directories
 build/
 build-linux/
 build-windows/
 
-# raylib prebuilt (бинарники, симлинки, ~50 МБ)
-raylib/
+# raylib: не коммитим симлинки .so и архивы
+# (headers и .a — коммитим, они нужны для сборки)
+raylib/**/*.so
+raylib/**/*.so.*
+raylib/*.tar.gz
+raylib/*.zip
 
 # IDE
 .vscode/
@@ -14,12 +18,14 @@ raylib/
 .DS_Store
 Thumbs.db
 
-# CMake
+# CMake (генерируемые файлы)
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
+Makefile
+!compile.txt
 
-# Binary artifacts
+# Binary artifacts (наши собственные, не raylib)
 *.dll
-*.so
 *.exe
+/liblittle8.dll.a
