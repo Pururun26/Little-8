@@ -66,11 +66,20 @@ void oval(int x, int y, int w, int h, uint8_t color, bool filled);   // circle: 
 ### Sprites
 
 ```c
-void sprdata(int id, const uint8_t *data, int w, int h);   // load; 0 = transparent
-void spr(int id, int x, int y, bool flip_x, bool flip_y);  // draw
+void sprdata(int id, const uint8_t *data, int w, int h);                       // load
+void spr(int id, int x, int y, bool flip_x, bool flip_y, int colorkey);        // draw
 ```
 
-`data` is `w*h` bytes, row-major, values `0..15`. Example:
+`data` is `w*h` bytes, row-major, values `0..15`.
+
+`colorkey` — which color is **not** drawn:
+
+| value | behavior |
+|---|---|
+| `-1` | all pixels drawn (no transparency) |
+| `0..15` | pixels of this color are skipped |
+
+Example:
 
 ```c
 static const uint8_t heart[64] = {
@@ -84,7 +93,10 @@ static const uint8_t heart[64] = {
     0,0,0,0, 0,0,0,0,
 };
 sprdata(1, heart, 8, 8);
-spr(1, 10, 10, false, false);
+
+spr(1, 10, 10, false, false, 0);    // color 0 transparent (PICO-8 style)
+spr(1, 20, 10, true,  false, 0);    // flipped horizontally
+spr(1, 30, 10, false, false, -1);   // all pixels visible (solid)
 ```
 
 ### Text
