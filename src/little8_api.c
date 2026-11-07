@@ -1,9 +1,12 @@
 #include "little8.h"
+#include "little8_audio.h"
 #include "little8_font3x4.h"
+#include "little8_save.h"
 #include "raylib.h"
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define L8_SPR_COUNT  256
 #define L8_SPR_MAX_W  128
@@ -45,25 +48,23 @@ static void flush_fb(void) {
 
 
 // ---------- Точка входа ----------
-void little8(void (*init)(void),
-             void (*update)(void),
-             void (*draw)(void)) {
+void little8(void (*callback)(void)) {
     InitWindow(L8_SCREEN_W * L8_WINDOW_SCALE,
                L8_SCREEN_H * L8_WINDOW_SCALE, L8_NAME);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
-    SetWindowMinSize(L8_SCREEN_W, L8_SCREEN_H);   // не меньше 1×
+    SetWindowMinSize(L8_SCREEN_W, L8_SCREEN_H);
     SetTargetFPS(L8_TARGET_FPS);
+
+    l8_audio_init();
+    l8_save_open();
 
     Image img = GenImageColor(L8_SCREEN_W, L8_SCREEN_H, BLACK);
     Texture2D screen = LoadTextureFromImage(img);
     UnloadImage(img);
     SetTextureFilter(screen, TEXTURE_FILTER_POINT);
 
-    if (init) init();
-
     while (!WindowShouldClose()) {
-        if (update) update();
-        if (draw)   draw();
+        if (callback) callback();
         flush_fb();
         UpdateTexture(screen, pixels);
 
@@ -93,6 +94,8 @@ void little8(void (*init)(void),
 
     UnloadTexture(screen);
     CloseWindow();
+    l8_save_close();
+    l8_audio_close();
 }
 
 
@@ -156,60 +159,84 @@ void line(int x0, int y0, int x1, int y1, uint8_t color) {
     }
 }
 
-void rect(int x, int y, int w, int h, uint8_t color) {
+void rect(int x, int y, int w, int h, uint8_t color, bool filled) {
     if (w <= 0 || h <= 0) return;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            pset(x + i, y + j, color);
+
+    if (filled) {
+        for (int j = 0; j < h; j++)
+            for (int i = 0; i < w; i++)
+                pset(x + i, y + j, color);
+    } else {
+        for (int i = 0; i < w; i++) {
+            pset(x + i, y,         color);
+            pset(x + i, y + h - 1, color);
+        }
+        for (int j = 0; j < h; j++) {
+            pset(x,         y + j, color);
+            pset(x + w - 1, y + j, color);
+        }
+    }
 }
 
-void rectb(int x, int y, int w, int h, uint8_t color) {
+void oval(int x, int y, int w, int h, uint8_t color, bool filled) {
     if (w <= 0 || h <= 0) return;
-    for (int i = 0; i < w; i++) {
-        pset(x + i, y,         color);
-        pset(x + i, y + h - 1, color);
-    }
-    for (int j = 0; j < h; j++) {
-        pset(x,         y + j, color);
-        pset(x + w - 1, y + j, color);
-    }
-}
 
-void circb(int cx, int cy, int r, uint8_t color) {
-    if (r < 0) return;
-    int x = r, y = 0;
-    int err = 1 - r;
-    while (x >= y) {
-        pset(cx + x, cy + y, color);
-        pset(cx - x, cy + y, color);
-        pset(cx + x, cy - y, color);
-        pset(cx - x, cy - y, color);
-        pset(cx + y, cy + x, color);
-        pset(cx - y, cy + x, color);
-        pset(cx + y, cy - x, color);
-        pset(cx - y, cy - x, color);
-        y++;
-        if (err < 0) err += 2 * y + 1;
-        else { x--; err += 2 * (y - x) + 1; }
+    if (w == 1 || h == 1) {
+        // вырожденный случай — просто линия
+        rect(x, y, w, h, color, true);
+        return;
     }
-}
 
-void circ(int cx, int cy, int r, uint8_t color) {
-    if (r < 0) return;
-    int x = r, y = 0;
-    int err = 1 - r;
-    while (x >= y) {
-        for (int i = cx - x; i <= cx + x; i++) {
-            pset(i, cy + y, color);
-            pset(i, cy - y, color);
+    if (filled) {
+        float rx = (w - 1) / 2.0f;
+        float ry = (h - 1) / 2.0f;
+        float cx = x + rx;
+        float cy = y + ry;
+
+        for (int j = 0; j < h; j++) {
+            float dy = (j - ry) / ry;
+            float dy2 = dy * dy;
+            if (dy2 > 1.0f) continue;
+            float dx = sqrtf(1.0f - dy2) * rx;
+
+            int x0 = (int)(cx - dx + 0.5f);
+            int x1 = (int)(cx + dx + 0.5f);
+
+            if (x0 < x)     x0 = x;
+            if (x1 > x+w-1) x1 = x + w - 1;
+
+            for (int i = x0; i <= x1; i++)
+                pset(i, y + j, color);
         }
-        for (int i = cx - y; i <= cx + y; i++) {
-            pset(i, cy + x, color);
-            pset(i, cy - x, color);
+    } else {
+        // midpoint ellipse (Zingl)
+        int x0 = x, y0 = y, x1 = x + w - 1, y1 = y + h - 1;
+        long a  = abs(x1 - x0);
+        long b  = abs(y1 - y0);
+        long b1 = b & 1;
+        long dx = 4 * (1 - a) * b * b;
+        long dy = 4 * (b1 + 1) * a * a;
+        long err = dx + dy + b1 * a * a;
+
+        if (x0 > x1) { x0 = x1; x1 += a; }
+        if (y0 > y1) y0 = y1;
+        y0 += (b + 1) / 2;
+        y1 = y0 - b1;
+        a *= 8 * a;
+        b1 = 8 * b * b;
+
+        do {
+            pset(x1, y0, color); pset(x0, y0, color);
+            pset(x0, y1, color); pset(x1, y1, color);
+            long e2 = 2 * err;
+            if (e2 <= dy) { y0++; y1--; err += dy += a; }
+            if (e2 >= dx || 2 * err > dy) { x0++; x1--; err += dx += b1; }
+        } while (x0 <= x1);
+
+        while (y0 - y1 < b) {
+            pset(x0 - 1, y0, color); pset(x1 + 1, y0++, color);
+            pset(x0 - 1, y1, color); pset(x1 + 1, y1--, color);
         }
-        y++;
-        if (err < 0) err += 2 * y + 1;
-        else { x--; err += 2 * (y - x) + 1; }
     }
 }
 

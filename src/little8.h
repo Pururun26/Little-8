@@ -20,12 +20,14 @@ extern "C" {
 #endif
 
 // ---- Точка входа ----
-// init   — вызывается один раз при старте (может быть NULL)
-// update — логика, каждый кадр (обязателен)
-// draw   — рисование, каждый кадр (обязателен)
-L8_API void little8(void (*init)(void),
-                    void (*update)(void),
-                    void (*draw)(void));
+// little8() запускает консоль. callback — функция, которую движок
+// вызывает каждый кадр (60 раз в секунду). Имя в твоей игре — любое.
+// Если callback == NULL — окно откроется с чёрным экраном.
+//
+// Пример:
+//     static void my_game(void) { ... }
+//     int main(void) { little8(my_game); return 0; }
+L8_API void little8(void (*callback)(void));
 
 // Очистить экран цветом (0..15)
 L8_API void cls(uint8_t color);
@@ -40,11 +42,14 @@ L8_API uint8_t pget(int x, int y);
 L8_API void print(const char *s, int x, int y, uint8_t color);
 
 
+// Линия от (x0,y0) до (x1,y1) — алгоритм Брезенхэма.
 L8_API void line(int x0, int y0, int x1, int y1, uint8_t color);
-L8_API void rect (int x, int y, int w, int h, uint8_t color);   // залитый
-L8_API void rectb(int x, int y, int w, int h, uint8_t color);   // рамка
-L8_API void circ (int x, int y, int r, uint8_t color);          // залитый
-L8_API void circb(int x, int y, int r, uint8_t color);          // рамка
+
+// Прямоугольник. filled=true — залитый, false — рамка 1px.
+L8_API void rect(int x, int y, int w, int h, uint8_t color, bool filled);
+
+// Овал/круг (круг = w==h). filled=true — залитый, false — контур.
+L8_API void oval(int x, int y, int w, int h, uint8_t color, bool filled);
 
 
 // Кнопка зажата сейчас (0=left 1=right 2=up 3=down 4=A 5=B)
@@ -63,6 +68,18 @@ L8_API void sprdata(int id, const uint8_t *data, int w, int h);
 // Нарисовать спрайт id в (x,y). flip_x/flip_y — отражение.
 // colorkey: цвет (0..15), который НЕ рисуется; -1 = все пиксели видны.
 L8_API void spr(int id, int x, int y, bool flip_x, bool flip_y, int colorkey);
+
+
+// ---- Звук ----
+L8_API void tone(int frequency, int duration, int volume, int channel);
+
+
+// ---- Сохранения ----
+// 64 слота по int64_t. Данные пишутся в <exe_dir>/save/storage.bin
+// при каждом dset (файл 512 байт — запись мгновенная).
+// Если slot вне [0, 63] — dset игнорируется, dget возвращает 0.
+L8_API void    dset(int slot, int64_t value);
+L8_API int64_t dget(int slot);
 
 #ifdef __cplusplus
 }
