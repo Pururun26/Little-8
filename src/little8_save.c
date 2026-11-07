@@ -1,11 +1,11 @@
 #include "little8_save.h"
 #include "little8.h"      // для прототипов dset/dget с L8_API
-#include "little8_conf.h"
 #include "raylib.h"
 
 #include <stdio.h>
 #include <string.h>
 
+#define SAVE_SLOTS 64
 #define SAVE_BYTES ((int)(SAVE_SLOTS * sizeof(int64_t)))
 
 static int64_t g_save[SAVE_SLOTS];
